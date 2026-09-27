@@ -324,6 +324,17 @@ MIT
 <!-- handsoff-issue-785 -->
 - #785: NotificationSettings validates the email address but saves the webhook URL with no format check
 
+<!-- handsoff-issue-720 -->
+- #720: execute_upgrade performs the WASM upgrade without emitting an event
+
+<!-- handsoff-issue-721 -->
+- #721: init() has no event emission for contract initialization
+
+<!-- handsoff-issue-722 -->
+- #722: init() panics instead of returning a typed ContractError when already initialized
+
+<!-- handsoff-issue-723 -->
+- #723: Dead/unused ContractError::NotAdmin variant left in both contracts after the NotInitialized fix
 <!-- handsoff-issue-728 -->
 - #728: token-locker has no pagination test for get_split_groups_by_creator (unlike lp-locker)
 
