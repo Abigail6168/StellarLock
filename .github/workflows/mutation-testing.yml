@@ -16,6 +16,10 @@ on:
       - "contracts/Cargo.lock"
       - ".github/workflows/mutation-testing.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   mutation-testing:
     name: cargo mutants (token-locker)

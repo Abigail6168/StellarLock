@@ -87,6 +87,8 @@ Before a PR can be merged to `main`, these CI jobs from `.github/workflows/ci.ym
 
 - **Frontend Checks** — ESLint, TypeScript type checking, unit/component tests, Storybook build, Vite build
 - **Smart Contract Checks** — Rust build, `cargo fmt`, `cargo test`, `cargo clippy`
+- **End-to-End and Visual Regression** — Playwright e2e and visual snapshot tests
+- **Commit Message Lint** — Conventional commit format enforcement (PR-only)
 
 **Maintaining Branch Protection:**
 
