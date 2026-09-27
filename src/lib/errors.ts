@@ -1,3 +1,5 @@
+import { NETWORK } from "@/lib/stellar"
+
 export interface StructuredError {
   code: string
   title: string
@@ -217,7 +219,7 @@ function parseWalletError(err: unknown): StructuredError | null {
       title: "errors.timeout.title",
       message: "errors.timeout.message",
       recovery: "errors.timeout.recovery",
-      link: { label: "Check on Stellar Expert", url: "https://stellar.expert/explorer/testnet" },
+      link: { label: "Check on Stellar Expert", url: `https://stellar.expert/explorer/${NETWORK.networkName}` },
     }
   }
   return null
