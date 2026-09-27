@@ -209,3 +209,42 @@ describe("getTokenBalance / getTokenAllowance decimals conversion (#509)", () =>
     expect(balance).toBeCloseTo(1.5, 6)
   })
 })
+
+// ── #742: NETWORK treats "staging" as mainnet, consistent with useVerifiedToken ──
+// NETWORK is computed once at module import time from VITE_NETWORK, so each
+// test here re-imports the module fresh after stubbing the env var (same
+// pattern used in env.test.ts).
+describe("NETWORK resolution (#742)", () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  afterEach(() => {
+    // Restore (not unstub-all) — this test file's other describe blocks,
+    // and src/test/setup.ts's global stubs, rely on VITE_RPC_URL etc.
+    // staying set; vi.unstubAllEnvs() would wipe those too.
+    vi.stubEnv("VITE_NETWORK", "TESTNET")
+  })
+
+  it('treats VITE_NETWORK="staging" as mainnet, not testnet', async () => {
+    vi.stubEnv("VITE_NETWORK", "staging")
+    const { Networks } = await import("@stellar/stellar-sdk")
+    const { NETWORK } = await import("@/lib/stellar")
+
+    // Before this fix, staging resolved to testnet here while
+    // useVerifiedToken already treated it as mainnet — a real cross-module
+    // inconsistency, since staging's own .env file points RPC/Horizon at
+    // mainnet infrastructure.
+    expect(NETWORK.id).toBe("mainnet")
+    expect(NETWORK.passphrase).toBe(Networks.PUBLIC)
+  })
+
+  it('still treats VITE_NETWORK="testnet" as testnet', async () => {
+    vi.stubEnv("VITE_NETWORK", "testnet")
+    const { Networks } = await import("@stellar/stellar-sdk")
+    const { NETWORK } = await import("@/lib/stellar")
+
+    expect(NETWORK.id).toBe("testnet")
+    expect(NETWORK.passphrase).toBe(Networks.TESTNET)
+  })
+})
