@@ -324,6 +324,17 @@ MIT
 <!-- handsoff-issue-785 -->
 - #785: NotificationSettings validates the email address but saves the webhook URL with no format check
 
+<!-- handsoff-issue-724 -->
+- #724: No test coverage for pause()/unpause() actually blocking state-mutating calls
+
+<!-- handsoff-issue-725 -->
+- #725: No test coverage for MIN/MAX lock-duration bounds (LockDurationTooShort/LockDurationTooLong)
+
+<!-- handsoff-issue-726 -->
+- #726: No test coverage for extend()'s ExtensionLimitExceeded / MAX_EXTENSIONS cap
+
+<!-- handsoff-issue-727 -->
+- #727: No test coverage for lp-locker's IdenticalTokens check
 <!-- handsoff-issue-720 -->
 - #720: execute_upgrade performs the WASM upgrade without emitting an event
 
