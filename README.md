@@ -326,3 +326,6 @@ MIT
 
 <!-- handsoff-issue-724 -->
 - #724: No test coverage for pause()/unpause() actually blocking state-mutating calls
+
+<!-- handsoff-issue-725 -->
+- #725: No test coverage for MIN/MAX lock-duration bounds (LockDurationTooShort/LockDurationTooLong)
