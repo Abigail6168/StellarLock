@@ -46,6 +46,11 @@ export interface IndexerLocksPageDTO {
 
 const FETCH_TIMEOUT_MS = 3000
 const CACHE_TTL_MS = 10_000
+// Maximum number of entries kept in the cache at any time. When the cap is
+// reached the oldest-inserted entry is evicted (insertion-order LRU) before
+// adding the new one. This prevents unbounded growth when a user browses many
+// token/page combinations in a long-lived session (fixes #755).
+const CACHE_MAX_SIZE = 100
 
 interface CacheEntry<T> {
   data: T
@@ -54,9 +59,23 @@ interface CacheEntry<T> {
 
 const statsCache = new Map<string, CacheEntry<unknown>>()
 
+/** Remove all entries whose TTL has already elapsed. */
+function pruneExpiredEntries(): void {
+  const now = Date.now()
+  for (const [key, entry] of statsCache) {
+    if (entry.expiry <= now) {
+      statsCache.delete(key)
+    }
+  }
+}
+
 async function fetchJson<T>(url: string): Promise<T | null> {
   const cached = statsCache.get(url)
   if (cached && cached.expiry > Date.now()) return cached.data as T
+
+  // Sweep expired entries on every fetch so the Map does not grow unbounded
+  // across pagination (each unique offset/limit combination is a new key).
+  pruneExpiredEntries()
 
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
@@ -65,6 +84,17 @@ async function fetchJson<T>(url: string): Promise<T | null> {
       return null
     }
     const data = (await res.json()) as T
+
+    // Enforce hard size cap: evict the oldest entry (Maps preserve insertion
+    // order) before inserting a new one so memory stays bounded even when
+    // every unexpired entry happens to share the same TTL window.
+    if (statsCache.size >= CACHE_MAX_SIZE) {
+      const oldestKey = statsCache.keys().next().value
+      if (oldestKey !== undefined) {
+        statsCache.delete(oldestKey)
+      }
+    }
+
     statsCache.set(url, { data, expiry: Date.now() + CACHE_TTL_MS })
     return data
   } catch (err) {

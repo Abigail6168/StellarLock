@@ -20,6 +20,7 @@ jobs:
   mutation-testing:
     name: cargo mutants (token-locker)
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: contracts/token-locker
