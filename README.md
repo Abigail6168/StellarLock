@@ -326,3 +326,6 @@ MIT
 
 <!-- handsoff-issue-728 -->
 - #728: token-locker has no pagination test for get_split_groups_by_creator (unlike lp-locker)
+
+<!-- handsoff-issue-729 -->
+- #729: No test coverage for the token-locker create_split_lock TVL/global-stats gap
