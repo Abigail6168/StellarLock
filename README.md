@@ -323,3 +323,6 @@ MIT
 - #779: CreateLpLockForm's beneficiary field has no i18n key at all, unlike CreateTokenLockForm's
 <!-- handsoff-issue-785 -->
 - #785: NotificationSettings validates the email address but saves the webhook URL with no format check
+
+<!-- handsoff-issue-728 -->
+- #728: token-locker has no pagination test for get_split_groups_by_creator (unlike lp-locker)
