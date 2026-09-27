@@ -424,7 +424,11 @@ export async function submitTokenApproval(
   sourceAddress: string,
   signTransaction: (xdr: string) => Promise<{ signedTxXdr: string }>,
 ): Promise<void> {
-  const amountStroops = BigInt(Math.round(amount * 1e7))
+  // Issue #740: was hardcoded to 7 decimals regardless of the token's real
+  // decimals(), breaking the approve-then-lock flow for any token that
+  // isn't 7 decimals.
+  const { decimals } = await getOnChainTokenMeta(tokenAddress)
+  const amountStroops = BigInt(Math.round(amount * 10 ** decimals))
   const expirationLedger = 0
 
   const scArgs: xdr.ScVal[] = [

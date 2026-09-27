@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { getTokenBalance as getTokenBalanceNumber } from "../lib/stellar"
+import { getOnChainTokenMeta } from "../lib/token-metadata"
 
 interface BalanceCacheEntry {
   balance: bigint
@@ -54,9 +55,12 @@ export function useTokenBalanceSWR(
 
     setIsRevalidating(true)
     try {
-      // getTokenBalance returns a float in whole tokens; convert to stroops as bigint for stability
-      const fresh = await getTokenBalanceNumber(token, addr)
-      const freshStroops = BigInt(Math.round(fresh * 1e7))
+      // getTokenBalance returns a float in whole tokens; convert back to the
+      // token's smallest unit as a bigint for cache stability. Using a fixed
+      // 1e7 here assumed every token has 7 decimals like XLM — wrong for any
+      // SEP-41 token with a different `decimals()` value (Issue #747).
+      const [fresh, { decimals }] = await Promise.all([getTokenBalanceNumber(token, addr), getOnChainTokenMeta(token)])
+      const freshStroops = BigInt(Math.round(fresh * 10 ** decimals))
 
       cache.set(cacheKey, { balance: freshStroops, fetchedAt: Date.now() })
 

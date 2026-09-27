@@ -10,7 +10,7 @@
  *  - Contract token (C... address) always returns 0 — known gap documented in issue
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { getTokenPriceUsd, estimateUsdValue, fetchPricesBatch, invalidatePriceCache } from "@/lib/prices"
+import { getTokenPriceUsd, estimateUsdValue, fetchPricesBatch, invalidatePriceCache, hasPriceFeed } from "@/lib/prices"
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -111,6 +111,23 @@ describe("prices", () => {
       // Contract tokens can't be queried via Horizon orderbook — the implementation
       // short-circuits and returns 0 without making any fetch calls for the token.
       expect(price).toBe(0)
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+  })
+
+  // ── hasPriceFeed (Issue #741) ────────────────────────────────────────────
+
+  describe("hasPriceFeed", () => {
+    it("is true for native XLM", () => {
+      expect(hasPriceFeed("native")).toBe(true)
+    })
+
+    it("is true for the empty-string native alias", () => {
+      expect(hasPriceFeed("")).toBe(true)
+    })
+
+    it("is false for a Soroban contract token address", () => {
+      expect(hasPriceFeed(CONTRACT_TOKEN)).toBe(false)
     })
   })
 
