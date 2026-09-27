@@ -23,9 +23,11 @@ const CACHE_TTL_MS = 60_000 // 1 minute
 const inflight = new Map<string, Promise<number>>()
 
 /**
- * Fetch the mid-market price of `tokenAddress` in USD via the Horizon orderbook.
- * Strategy: token/USDC orderbook. Falls back to token/XLM * XLM/USD.
- * Returns 0 if no price is available.
+ * Fetch the mid-market price of `tokenAddress` in USD.
+ * XLM (native) is priced via the Horizon USDC/XLM orderbook. Every other
+ * token here is a Soroban contract address, for which no price feed is
+ * implemented yet (see hasPriceFeed) — returns 0 in that case, not a real
+ * price of zero.
  */
 export async function getTokenPriceUsd(tokenAddress: string): Promise<number> {
   // XLM native
@@ -52,17 +54,43 @@ export async function getTokenPriceUsd(tokenAddress: string): Promise<number> {
   return promise
 }
 
-async function fetchPrice(tokenAddress: string): Promise<number> {
-  // Route: token → XLM via orderbook, then XLM → USD
-  // Horizon doesn't support Soroban contract assets (C...) in orderbook.
-  // For contract tokens, no price feed is available — return 0.
-  const xlmUsd = await xlmPriceUsd()
-  if (xlmUsd === 0) return 0
+function fetchPrice(tokenAddress: string): Promise<number> {
+  // Issue #741: every locked token in this app is a Soroban contract
+  // address (starts with "C"), and Horizon's orderbook can only price
+  // classic Stellar assets (issuer accounts, "G..."), never a contract
+  // address — there is no code path here that could ever price one. The
+  // previous version routed through xlmPriceUsd()/tokenToXlmPrice() before
+  // discovering that three calls deep, which both wasted a network round
+  // trip and looked like a real (if unlucky) price lookup rather than a
+  // known, guaranteed miss. Checking hasPriceFeed() first makes that
+  // explicit and primary instead.
+  //
+  // No Soroban-native price source (DEX pool/AMM query) exists yet, so
+  // this still returns 0 for every real token here; callers that need to
+  // distinguish "genuinely zero" from "no price feed available" can check
+  // hasPriceFeed() below instead of treating this 0 as a real price.
+  if (!hasPriceFeed(tokenAddress)) return Promise.resolve(0)
 
-  const tokenXlm = await tokenToXlmPrice(tokenAddress)
-  if (tokenXlm === 0) return 0
+  // Only a hypothetical classic (non-contract) Stellar asset reaches here;
+  // no such token exists anywhere else in this codebase today.
+  return Promise.resolve(0)
+}
 
-  return tokenXlm * xlmUsd
+/**
+ * Whether a real price feed can currently be sourced for `tokenAddress`.
+ * Every token in this app is a Soroban contract address ("C..."), and
+ * Horizon's orderbook — the only price source implemented so far — can
+ * only price classic Stellar assets, never a contract address. Until a
+ * Soroban-native price source (e.g. a DEX pool/AMM query) is implemented,
+ * this is always false for a real token; use it to show "price
+ * unavailable" instead of a misleading "$0.00".
+ */
+export function hasPriceFeed(tokenAddress: string): boolean {
+  // Native XLM has a real feed (the Horizon USDC/XLM orderbook).
+  if (tokenAddress === NATIVE || tokenAddress === "") return true
+  // Every other token here is a Soroban contract address, which Horizon's
+  // orderbook cannot price. No Soroban-native price source exists yet.
+  return !tokenAddress.startsWith("C")
 }
 
 /** Fetch XLM/USD price via USDC/XLM orderbook on Horizon. */
@@ -110,18 +138,6 @@ async function fetchXlmPrice(): Promise<number> {
   } catch {
     return 0
   }
-}
-
-/** Fetch token/XLM price via Horizon orderbook (classic SEP-41 tokens only). */
-function tokenToXlmPrice(tokenAddress: string): Promise<number> {
-  // We can only query classic Stellar assets (G... issuer) via Horizon orderbook.
-  // Soroban contract tokens (C...) are not queryable via Horizon orderbook.
-  // For contract tokens we return 0 (no price available).
-  if (tokenAddress.startsWith("C")) return Promise.resolve(0)
-
-  // tokenAddress here is "CODE:ISSUER" format for classic assets, which we don't
-  // support in this codebase (all tokens are contract addresses). Return 0.
-  return Promise.resolve(0)
 }
 
 /**

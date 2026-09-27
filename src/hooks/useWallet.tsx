@@ -91,6 +91,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           setAddress(null)
           localStorage.removeItem(STORAGE_KEY)
           localStorage.removeItem(WALLET_ID_KEY)
+          return
+        }
+
+        // Issue #746: networkChanged was declared, exposed on the context,
+        // and reset by disconnect()/dismissNetworkAlert(), but nothing ever
+        // called setNetworkChanged(true) — a user who switched the wallet's
+        // network mid-session never saw the (fully built, translated) alert.
+        // Piggyback on this existing poll to detect that divergence.
+        const { networkPassphrase } = await k.getNetwork()
+        if (networkPassphrase !== String(NETWORK.passphrase)) {
+          setNetworkChanged(true)
         }
       } catch {
         setDisconnected(true)
