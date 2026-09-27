@@ -329,3 +329,6 @@ MIT
 
 <!-- handsoff-issue-725 -->
 - #725: No test coverage for MIN/MAX lock-duration bounds (LockDurationTooShort/LockDurationTooLong)
+
+<!-- handsoff-issue-726 -->
+- #726: No test coverage for extend()'s ExtensionLimitExceeded / MAX_EXTENSIONS cap
