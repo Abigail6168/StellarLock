@@ -1,9 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import {
-  StellarWalletsKit,
-  WalletNetwork,
-  allowAllModules,
-} from "@creit.tech/stellar-wallets-kit"
+import { StellarWalletsKit, WalletNetwork, allowAllModules } from "@creit.tech/stellar-wallets-kit"
 import { trackEvent } from "@/lib/analytics"
 import { NETWORK } from "@/lib/stellar"
 import { notify } from "../lib/utils"
@@ -153,6 +149,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           })
           return
         } catch (err: unknown) {
+          // Issue #745: the user explicitly closing the wallet-selection
+          // modal (onClosed) is an intentional abort, not a failure to
+          // retry — without this, the modal would silently reopen itself
+          // after a backoff delay, up to 3 more times.
+          if (err instanceof Error && err.message === "Connection cancelled") {
+            setConnectState("idle")
+            setConnectError(null)
+            setConnectHelp(null)
+            return
+          }
+
           if (attempt < 4) {
             const delay = 1000 * 2 ** (attempt - 1)
             setConnectState("retrying")
@@ -231,7 +238,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       dismissNetworkAlert,
       signTransaction,
     }),
-    [address, connecting, connectState, connectError, connectHelp, disconnected, networkChanged, connect, disconnect, dismissDisconnectAlert, dismissNetworkAlert, signTransaction],
+    [
+      address,
+      connecting,
+      connectState,
+      connectError,
+      connectHelp,
+      disconnected,
+      networkChanged,
+      connect,
+      disconnect,
+      dismissDisconnectAlert,
+      dismissNetworkAlert,
+      signTransaction,
+    ],
   )
 
   return (
@@ -250,17 +270,22 @@ function SessionRecoveryBridge() {
 
 function getFriendlyError(message: string): string {
   const normalized = message.toLowerCase()
-  if (normalized.includes("cancel") || normalized.includes("rejected")) return "Connection was rejected. Please approve the prompt in Freighter."
-  if (normalized.includes("network")) return "The wallet is on the wrong network. Switch Freighter to the app network and try again."
-  if (normalized.includes("freighter") || normalized.includes("extension")) return "Freighter was not detected. Install or unlock the extension and retry."
+  if (normalized.includes("cancel") || normalized.includes("rejected"))
+    return "Connection was rejected. Please approve the prompt in Freighter."
+  if (normalized.includes("network"))
+    return "The wallet is on the wrong network. Switch Freighter to the app network and try again."
+  if (normalized.includes("freighter") || normalized.includes("extension"))
+    return "Freighter was not detected. Install or unlock the extension and retry."
   return message
 }
 
 function getConnectHelp(message: string): string {
   const normalized = message.toLowerCase()
-  if (normalized.includes("cancel") || normalized.includes("rejected")) return "Approve the connection popup in Freighter to continue."
+  if (normalized.includes("cancel") || normalized.includes("rejected"))
+    return "Approve the connection popup in Freighter to continue."
   if (normalized.includes("network")) return "Switch Freighter to Testnet or Mainnet to match the app and try again."
-  if (normalized.includes("freighter") || normalized.includes("extension")) return "Install the Freighter extension or unlock it, then try again."
+  if (normalized.includes("freighter") || normalized.includes("extension"))
+    return "Install the Freighter extension or unlock it, then try again."
   return "Check your browser extension and network connection, then retry."
 }
 
