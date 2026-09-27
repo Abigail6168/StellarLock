@@ -1,10 +1,10 @@
 name: Mutation Testing
 
-# Runs `cargo mutants` against the token-locker contract using the config in
-# contracts/token-locker/.cargo-mutants.toml (see contracts/MUTATION_TESTING.md
-# for background/rationale). Mutation runs are slow, so this is scheduled
-# weekly rather than on every push, plus an on-demand trigger and a
-# pull-request trigger scoped to contract changes.
+# Runs `cargo mutants` against the token-locker and lp-locker contracts using
+# the configs in contracts/{token-locker,lp-locker}/.cargo-mutants.toml (see
+# contracts/MUTATION_TESTING.md for background/rationale). Mutation runs are
+# slow, so this is scheduled weekly rather than on every push, plus an
+# on-demand trigger and a pull-request trigger scoped to contract changes.
 on:
   schedule:
     - cron: "0 5 * * 1" # Every Monday at 05:00 UTC
@@ -13,6 +13,7 @@ on:
     branches: [main]
     paths:
       - "contracts/token-locker/**"
+      - "contracts/lp-locker/**"
       - "contracts/Cargo.lock"
       - ".github/workflows/mutation-testing.yml"
 
@@ -22,11 +23,15 @@ concurrency:
 
 jobs:
   mutation-testing:
-    name: cargo mutants (token-locker)
+    name: cargo mutants (${{ matrix.contract }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        contract: [token-locker, lp-locker]
     defaults:
       run:
-        working-directory: contracts/token-locker
+        working-directory: contracts/${{ matrix.contract }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -45,7 +50,7 @@ jobs:
       # `.cargo-mutants.toml` in this directory configures excludes/timeout
       # multiplier. cargo-mutants detects the contracts/ workspace root and
       # writes mutants.out there by default even when invoked from this
-      # subdirectory, so `--output .` pins it to contracts/token-locker/
+      # subdirectory, so `--output .` pins it to contracts/${{ matrix.contract }}/
       # where the steps below (and the upload-artifact path) expect it.
       # cargo-mutants also has no built-in "fail above N% survivors" flag,
       # so the threshold from contracts/MUTATION_TESTING.md is enforced by
@@ -78,7 +83,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "## Mutation Testing Results — token-locker"
+            echo "## Mutation Testing Results — ${{ matrix.contract }}"
             echo
             if [ -d mutants.out ]; then
               for f in caught.txt missed.txt timeout.txt unviable.txt; do
@@ -106,7 +111,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mutants-report-token-locker
-          path: contracts/token-locker/mutants.out
+          name: mutants-report-${{ matrix.contract }}
+          path: contracts/${{ matrix.contract }}/mutants.out
           retention-days: 30
           if-no-files-found: ignore
