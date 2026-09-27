@@ -326,3 +326,6 @@ MIT
 
 <!-- handsoff-issue-720 -->
 - #720: execute_upgrade performs the WASM upgrade without emitting an event
+
+<!-- handsoff-issue-721 -->
+- #721: init() has no event emission for contract initialization
