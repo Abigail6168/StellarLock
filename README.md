@@ -323,3 +323,6 @@ MIT
 - #779: CreateLpLockForm's beneficiary field has no i18n key at all, unlike CreateTokenLockForm's
 <!-- handsoff-issue-785 -->
 - #785: NotificationSettings validates the email address but saves the webhook URL with no format check
+
+<!-- handsoff-issue-724 -->
+- #724: No test coverage for pause()/unpause() actually blocking state-mutating calls
