@@ -323,3 +323,15 @@ MIT
 - #779: CreateLpLockForm's beneficiary field has no i18n key at all, unlike CreateTokenLockForm's
 <!-- handsoff-issue-785 -->
 - #785: NotificationSettings validates the email address but saves the webhook URL with no format check
+
+<!-- handsoff-issue-728 -->
+- #728: token-locker has no pagination test for get_split_groups_by_creator (unlike lp-locker)
+
+<!-- handsoff-issue-729 -->
+- #729: No test coverage for the token-locker create_split_lock TVL/global-stats gap
+
+<!-- handsoff-issue-730 -->
+- #730: No test coverage for a zero-vesting-start / malicious Vesting.released input at lock creation
+
+<!-- handsoff-issue-731 -->
+- #731: remove_from_index rebuilds the entire index Vec on every transfer_beneficiary call
