@@ -332,3 +332,6 @@ MIT
 
 <!-- handsoff-issue-722 -->
 - #722: init() panics instead of returning a typed ContractError when already initialized
+
+<!-- handsoff-issue-723 -->
+- #723: Dead/unused ContractError::NotAdmin variant left in both contracts after the NotInitialized fix
