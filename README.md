@@ -332,3 +332,6 @@ MIT
 
 <!-- handsoff-issue-730 -->
 - #730: No test coverage for a zero-vesting-start / malicious Vesting.released input at lock creation
+
+<!-- handsoff-issue-731 -->
+- #731: remove_from_index rebuilds the entire index Vec on every transfer_beneficiary call
