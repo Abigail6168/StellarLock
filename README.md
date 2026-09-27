@@ -335,3 +335,14 @@ MIT
 
 <!-- handsoff-issue-723 -->
 - #723: Dead/unused ContractError::NotAdmin variant left in both contracts after the NotInitialized fix
+<!-- handsoff-issue-728 -->
+- #728: token-locker has no pagination test for get_split_groups_by_creator (unlike lp-locker)
+
+<!-- handsoff-issue-729 -->
+- #729: No test coverage for the token-locker create_split_lock TVL/global-stats gap
+
+<!-- handsoff-issue-730 -->
+- #730: No test coverage for a zero-vesting-start / malicious Vesting.released input at lock creation
+
+<!-- handsoff-issue-731 -->
+- #731: remove_from_index rebuilds the entire index Vec on every transfer_beneficiary call
