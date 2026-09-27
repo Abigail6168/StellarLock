@@ -209,6 +209,23 @@ export function validateLpLockForm(params: {
     })
   }
 
+  if (tokenATrimmed && tokenBTrimmed && tokenATrimmed === tokenBTrimmed) {
+    const identicalTokensMessage = "Token A and Token B must be different."
+    const identicalTokensGuidance = "Enter two different Stellar token contract ids."
+    issues.push(
+      {
+        field: "tokenA",
+        message: identicalTokensMessage,
+        guidance: identicalTokensGuidance,
+      },
+      {
+        field: "tokenB",
+        message: identicalTokensMessage,
+        guidance: identicalTokensGuidance,
+      },
+    )
+  }
+
   const beneficiaryValid = isValidStellarAddress(wallet)
   if (!beneficiaryValid) {
     issues.push({

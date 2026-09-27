@@ -160,6 +160,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           })
           return
         } catch (err: unknown) {
+          // Issue #745: the user explicitly closing the wallet-selection
+          // modal (onClosed) is an intentional abort, not a failure to
+          // retry — without this, the modal would silently reopen itself
+          // after a backoff delay, up to 3 more times.
+          if (err instanceof Error && err.message === "Connection cancelled") {
+            setConnectState("idle")
+            setConnectError(null)
+            setConnectHelp(null)
+            return
+          }
+
           if (attempt < 4) {
             const delay = 1000 * 2 ** (attempt - 1)
             setConnectState("retrying")

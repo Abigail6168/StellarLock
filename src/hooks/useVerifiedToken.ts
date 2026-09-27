@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { resolveNetworkKey } from "@/lib/network-key"
 
 interface VerifiedEntry {
   address: string
@@ -13,18 +14,6 @@ interface VerifiedTokensFile {
 
 // Per-network caches so switching network env never serves the wrong list.
 const _caches = new Map<string, Set<string>>()
-
-/**
- * Resolve which network key to read from verified-tokens.json.
- *
- * VITE_NETWORK can be "testnet", "staging", or "mainnet".
- * Staging uses mainnet contracts, so we map it to "mainnet" here as well.
- * Anything else (including the testnet dev default) maps to "testnet".
- */
-function resolveNetworkKey(): "testnet" | "mainnet" {
-  const network = import.meta.env.VITE_NETWORK?.toLowerCase() ?? "testnet"
-  return network === "mainnet" || network === "staging" ? "mainnet" : "testnet"
-}
 
 async function loadVerifiedTokens(): Promise<Set<string>> {
   const key = resolveNetworkKey()

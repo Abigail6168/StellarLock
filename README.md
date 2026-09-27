@@ -323,3 +323,37 @@ MIT
 - #779: CreateLpLockForm's beneficiary field has no i18n key at all, unlike CreateTokenLockForm's
 <!-- handsoff-issue-785 -->
 - #785: NotificationSettings validates the email address but saves the webhook URL with no format check
+
+<!-- handsoff-issue-724 -->
+- #724: No test coverage for pause()/unpause() actually blocking state-mutating calls
+
+<!-- handsoff-issue-725 -->
+- #725: No test coverage for MIN/MAX lock-duration bounds (LockDurationTooShort/LockDurationTooLong)
+
+<!-- handsoff-issue-726 -->
+- #726: No test coverage for extend()'s ExtensionLimitExceeded / MAX_EXTENSIONS cap
+
+<!-- handsoff-issue-727 -->
+- #727: No test coverage for lp-locker's IdenticalTokens check
+<!-- handsoff-issue-720 -->
+- #720: execute_upgrade performs the WASM upgrade without emitting an event
+
+<!-- handsoff-issue-721 -->
+- #721: init() has no event emission for contract initialization
+
+<!-- handsoff-issue-722 -->
+- #722: init() panics instead of returning a typed ContractError when already initialized
+
+<!-- handsoff-issue-723 -->
+- #723: Dead/unused ContractError::NotAdmin variant left in both contracts after the NotInitialized fix
+<!-- handsoff-issue-728 -->
+- #728: token-locker has no pagination test for get_split_groups_by_creator (unlike lp-locker)
+
+<!-- handsoff-issue-729 -->
+- #729: No test coverage for the token-locker create_split_lock TVL/global-stats gap
+
+<!-- handsoff-issue-730 -->
+- #730: No test coverage for a zero-vesting-start / malicious Vesting.released input at lock creation
+
+<!-- handsoff-issue-731 -->
+- #731: remove_from_index rebuilds the entire index Vec on every transfer_beneficiary call

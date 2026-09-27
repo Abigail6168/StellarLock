@@ -13,11 +13,16 @@ import {
 import { getContractAddress } from "@/lib/contracts.generated"
 import { createLogger } from "@/lib/logger"
 import { getOnChainTokenMeta } from "@/lib/token-metadata"
+import { resolveNetworkKey } from "@/lib/network-key"
 
 const log = createLogger("stellar")
 
-const envNetwork = (import.meta.env.VITE_NETWORK || "testnet").toLowerCase()
-const isMainnet = envNetwork === "mainnet" || envNetwork === "public"
+// Issue #742: derive from the shared resolveNetworkKey() instead of
+// re-implementing the testnet/staging/mainnet mapping here — this used to
+// treat "staging" as testnet while useVerifiedToken treated it as mainnet,
+// a real cross-module inconsistency (staging deploys against mainnet
+// contracts, so its RPC/passphrase must match).
+const isMainnet = resolveNetworkKey() === "mainnet"
 
 const defaultRpcUrl = isMainnet ? "https://soroban-mainnet.stellar.org" : "https://soroban-testnet.stellar.org"
 const defaultHorizonUrl = isMainnet ? "https://horizon.stellar.org" : "https://horizon-testnet.stellar.org"
