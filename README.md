@@ -332,3 +332,6 @@ MIT
 
 <!-- handsoff-issue-726 -->
 - #726: No test coverage for extend()'s ExtensionLimitExceeded / MAX_EXTENSIONS cap
+
+<!-- handsoff-issue-727 -->
+- #727: No test coverage for lp-locker's IdenticalTokens check
