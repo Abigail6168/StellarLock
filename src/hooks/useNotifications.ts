@@ -29,6 +29,10 @@ export interface Notification {
 export interface NotificationPrefs {
   lockId?: string
   browser: boolean
+  /** Unix-ms timestamp of the lock's unlock time — persisted so reminders can
+   *  be re-armed after a page reload without requiring the lock data to be
+   *  fetched first (issue #752). */
+  unlockAt?: number
   email?: string
   webhookUrl?: string
   types: Partial<Record<NotificationType, boolean>>
@@ -179,6 +183,14 @@ export function scheduleUnlockReminder(lockId: string, unlockAt: number) {
   if (globalPrefs.browser === false) return
   const types = globalPrefs.types ?? getDefaultPrefs()
 
+  // Persist the unlockAt timestamp into the per-lock prefs entry so that
+  // rearmAllReminders() can reconstruct timers after a page reload without
+  // needing to fetch the lock from the chain (issue #752).
+  const all = loadPrefs()
+  const existing = all[lockId] ?? { lockId, browser: true, types: getDefaultPrefs() }
+  all[lockId] = { ...existing, browser: true, unlockAt }
+  savePrefs(all)
+
   const now = Date.now()
   const oneDay = 24 * 60 * 60 * 1000
   const sevenDays = 7 * oneDay
@@ -202,6 +214,30 @@ export function scheduleUnlockReminder(lockId: string, unlockAt: number) {
         })
       }, delay)
     }
+  }
+}
+
+/**
+ * Re-arm unlock reminder timers for every lock that has browser notifications
+ * enabled in stored prefs. Call once on app bootstrap so reminders survive
+ * tab closes and page reloads (issue #752).
+ *
+ * Only locks whose stored `unlockAt` is still in the future are re-armed;
+ * already-elapsed entries are silently skipped.
+ */
+export function rearmAllReminders(): void {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return
+
+  const all = loadPrefs()
+  for (const [key, prefs] of Object.entries(all)) {
+    // Skip the global settings entry and any lock entries without browser
+    // notifications enabled or without a persisted unlock timestamp.
+    if (key === "global") continue
+    if (!prefs.browser) continue
+    if (typeof prefs.unlockAt !== "number") continue
+    if (prefs.unlockAt <= Date.now()) continue
+
+    scheduleUnlockReminder(key, prefs.unlockAt)
   }
 }
 
