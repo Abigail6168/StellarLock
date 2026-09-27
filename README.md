@@ -329,3 +329,6 @@ MIT
 
 <!-- handsoff-issue-721 -->
 - #721: init() has no event emission for contract initialization
+
+<!-- handsoff-issue-722 -->
+- #722: init() panics instead of returning a typed ContractError when already initialized
