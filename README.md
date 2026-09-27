@@ -329,3 +329,6 @@ MIT
 
 <!-- handsoff-issue-729 -->
 - #729: No test coverage for the token-locker create_split_lock TVL/global-stats gap
+
+<!-- handsoff-issue-730 -->
+- #730: No test coverage for a zero-vesting-start / malicious Vesting.released input at lock creation
