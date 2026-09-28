@@ -11,6 +11,7 @@ import { AnnouncerProvider } from "@/hooks/useAnnouncer"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { initErrorTracking } from "@/lib/sentry"
 import { initWebVitals } from "@/lib/web-vitals"
+import { rearmAllReminders } from "@/hooks/useNotifications"
 import "@/index.css"
 
 if ("serviceWorker" in navigator) {
@@ -22,6 +23,11 @@ if ("serviceWorker" in navigator) {
 }
 initErrorTracking()
 void initWebVitals()
+
+// Re-arm browser unlock-reminder timers for every lock that had notifications
+// enabled in a previous session. Pure in-memory setTimeouts are lost on tab
+// close/refresh, so we rebuild them on every bootstrap (issue #752).
+rearmAllReminders()
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

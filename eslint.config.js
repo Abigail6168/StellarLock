@@ -5,11 +5,9 @@ import reactRefresh from "eslint-plugin-react-refresh"
 import prettierConfig from "eslint-config-prettier"
 
 export default tseslint.config(
-  // e2e/ and playwright.config.ts depend on @playwright/test, which isn't in
-  // the lockfile yet (separate pre-existing gap - tracked outside this lint
-  // cleanup); public/sw.js is a standalone service worker script with no
-  // benefit from type-aware linting.
-  { ignores: ["dist", "contracts", "e2e", "playwright.config.ts", "public/sw.js"] },
+  // public/sw.js is a standalone service worker script with no benefit from
+  // type-aware linting.
+  { ignores: ["dist", "contracts", "public/sw.js"] },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
@@ -20,6 +18,7 @@ export default tseslint.config(
             "eslint.config.js",
             "vite.config.ts",
             "vitest.config.ts",
+            "playwright.config.ts",
             "commitlint.config.js",
             ".storybook/*.ts",
             ".storybook/*.tsx",
@@ -27,10 +26,12 @@ export default tseslint.config(
             "api/_lib/*.ts",
             "api/notifications/*.ts",
             "indexer/*.ts",
+            "e2e/*.ts",
+            "e2e/pages/*.ts",
           ],
           // The globs above intentionally span more than the typescript-eslint
           // default cap of 8 files sharing the synthetic "default project".
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 30,
         },
         tsconfigRootDir: import.meta.dirname,
       },

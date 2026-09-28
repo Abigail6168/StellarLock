@@ -79,8 +79,19 @@ export function exportToCSV(locks: Lock[], filename = "locks.csv"): void {
       .map((row) =>
         row
           .map((cell) => {
+            let str = String(cell)
+
+            // CSV formula-injection mitigation: neutralise any cell value that
+            // starts with a spreadsheet formula-trigger character (=, +, -, @,
+            // tab, or CR).  Token symbol/name come straight from on-chain
+            // contracts and are untrusted, so a malicious deployer could embed
+            // a payload (e.g. "=cmd|' /C calc'!A1").  Prefixing with a single
+            // quote tells Excel/Sheets to treat the value as plain text.
+            if (/^[=+\-@\t\r]/.test(str)) {
+              str = `'${str}`
+            }
+
             // Escape quotes and wrap in quotes if contains comma, quote, or newline
-            const str = String(cell)
             if (str.includes(",") || str.includes('"') || str.includes("\n")) {
               return `"${str.replace(/"/g, '""')}"`
             }

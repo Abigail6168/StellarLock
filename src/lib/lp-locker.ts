@@ -27,7 +27,7 @@ export interface CreateLpLockArgs {
  * @param tokenAddress - Contract address of the pool-share/LP token to approve.
  * @param owner - Address granting the allowance (the wallet that will create the lock).
  * @param spender - Address allowed to spend the allowance — normally the lp-locker contract id.
- * @param amount - Human-readable amount to approve (converted to stroops using 7 decimals).
+ * @param amount - Human-readable amount to approve (converted to the token's smallest unit using its real on-chain decimals).
  * @param sourceAddress - Address submitting the transaction; must equal `owner` for `require_auth` to pass.
  * @param signTransaction - Callback that signs the built transaction XDR and returns signed XDR.
  * @returns Resolves with no value once the approval transaction is confirmed.
@@ -43,7 +43,14 @@ export async function submitTokenApproval(
   sourceAddress: string,
   signTransaction: (xdr: string) => Promise<{ signedTxXdr: string }>,
 ): Promise<void> {
-  const amountStroops = BigInt(Math.round(amount * 1e7))
+  // Issue #740: was hardcoded to 7 decimals regardless of the LP/pool-share
+  // token's real decimals(), breaking the approve-then-lock flow for any
+  // token that isn't 7 decimals. This is a duplicate of stellar.ts's
+  // submitTokenApproval, kept separate here because the two are exercised
+  // by test suites that mock @/lib/stellar and @/lib/lp-locker independently
+  // of each other; both copies now fetch and use the real decimals.
+  const { decimals } = await getOnChainTokenMeta(tokenAddress)
+  const amountStroops = BigInt(Math.round(amount * 10 ** decimals))
   const expirationLedger = 0
 
   const scArgs: xdr.ScVal[] = [

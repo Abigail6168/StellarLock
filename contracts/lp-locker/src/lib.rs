@@ -70,6 +70,8 @@ pub enum ContractError {
     TooManyBeneficiaries = 13,
     SharesMustSum10000 = 14,
     VestingEndBeforeStart = 15,
+    VestingOutsideLockBounds = 26,
+    DuplicateBeneficiary = 27,
     NothingToRelease = 16,
     RateLimitExceeded = 17,
     NoPendingUpgrade = 18,
@@ -199,6 +201,22 @@ fn require_not_paused(env: &Env) -> Result<(), ContractError> {
     Ok(())
 }
 
+fn validate_vesting_bounds(
+    vesting: Option<&Vesting>,
+    created_at: u64,
+    unlock_at: u64,
+) -> Result<(), ContractError> {
+    if let Some(v) = vesting {
+        if v.end <= v.start {
+            return Err(ContractError::VestingEndBeforeStart);
+        }
+        if v.start < created_at || v.start > unlock_at {
+            return Err(ContractError::VestingOutsideLockBounds);
+        }
+    }
+    Ok(())
+}
+
 // ── Contract ──────────────────────────────────────────────────────────────────
 
 #[contract]
@@ -251,11 +269,7 @@ impl LpLocker {
             return Err(ContractError::RateLimitExceeded);
         }
 
-        if let Some(ref v) = vesting {
-            if v.end <= v.start {
-                return Err(ContractError::VestingEndBeforeStart);
-            }
-        }
+        validate_vesting_bounds(vesting.as_ref(), now, unlock_at)?;
 
         token::Client::new(&env, &pool_share).transfer(
             &creator,
@@ -614,11 +628,7 @@ impl LpLocker {
             return Err(ContractError::RateLimitExceeded);
         }
 
-        if let Some(ref v) = vesting {
-            if v.end <= v.start {
-                return Err(ContractError::VestingEndBeforeStart);
-            }
-        }
+        validate_vesting_bounds(vesting.as_ref(), now, unlock_at)?;
 
         let n = beneficiaries.len();
         if n < 2 {
@@ -630,9 +640,15 @@ impl LpLocker {
 
         let mut total_bps: u64 = 0;
         for i in 0..n {
-            let (_, bps) = beneficiaries.get(i).unwrap();
+            let (beneficiary, bps) = beneficiaries.get(i).unwrap();
             if bps == 0 {
                 return Err(ContractError::SharesMustSum10000);
+            }
+            for j in 0..i {
+                let (existing, _) = beneficiaries.get(j).unwrap();
+                if beneficiary == existing {
+                    return Err(ContractError::DuplicateBeneficiary);
+                }
             }
             total_bps += bps;
         }
@@ -666,6 +682,9 @@ impl LpLocker {
                     .ok_or(ContractError::AmountOverflow)?;
                 amount
             };
+            if share_amount <= 0 {
+                return Err(ContractError::AmountMustBePositive);
+            }
 
             // The first sub-lock reuses group_id so the group_id is also a
             // valid lock id; subsequent sub-locks get their own ids.
@@ -765,9 +784,12 @@ impl LpLocker {
                 .persistent()
                 .get(&DataKey::UniquePoolShareCount)
                 .unwrap_or(0);
+            let new_unique_count = unique_count
+                .checked_add(1)
+                .ok_or(ContractError::AmountOverflow)?;
             env.storage()
                 .persistent()
-                .set(&DataKey::UniquePoolShareCount, &(unique_count + 1));
+                .set(&DataKey::UniquePoolShareCount, &new_unique_count);
         }
         env.storage()
             .persistent()
@@ -779,9 +801,12 @@ impl LpLocker {
             .persistent()
             .get(&DataKey::GlobalLockCount)
             .unwrap_or(0);
+        let new_lock_count = lock_count
+            .checked_add(n as u64)
+            .ok_or(ContractError::AmountOverflow)?;
         env.storage()
             .persistent()
-            .set(&DataKey::GlobalLockCount, &(lock_count + n as u64));
+            .set(&DataKey::GlobalLockCount, &new_lock_count);
 
         env.events().publish(
             (
@@ -813,7 +838,7 @@ impl LpLocker {
         let mut out: Vec<SplitGroup> = vec![&env];
         let len = ids.len();
         let start = offset.min(len);
-        let end = (start + limit).min(len);
+        let end = start.saturating_add(limit).min(len);
         let mut i = start;
         while i < end {
             let id = ids.get(i).unwrap();

@@ -222,6 +222,19 @@ describe("lp-locker", () => {
       expect(scValToNative(scArgs[2])).toBe(250_0000000n)
       expect(scValToNative(scArgs[3])).toBe(0)
     })
+
+    it("scales the approved amount using the token's real decimals, not a hardcoded 7 (#740)", async () => {
+      submitCall.mockResolvedValue(undefined)
+      getOnChainTokenMeta.mockResolvedValue({ symbol: "W18", name: "Wide Token", decimals: 18 })
+      const signTx = vi.fn().mockResolvedValue({ signedTxXdr: "AAAA" })
+
+      await submitTokenApproval(VALID_TOKEN, VALID_ADDRESS, LP_LOCKER_ADDR, 2.5, VALID_ADDRESS, signTx)
+
+      const scArgs = submitCall.mock.calls[0][2] as xdr.ScVal[]
+      // Correct at 18 decimals: 2_500_000_000_000_000_000n.
+      // The old hardcoded-7-decimals bug would have produced 25_000_000n instead.
+      expect(scValToNative(scArgs[2])).toBe(2_500_000_000_000_000_000n)
+    })
   })
 
   describe("createLpLock", () => {

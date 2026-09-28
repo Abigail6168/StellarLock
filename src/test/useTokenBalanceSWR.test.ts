@@ -18,22 +18,28 @@ vi.mock("@/lib/stellar", () => ({
   getTokenBalance: vi.fn(),
 }))
 
+vi.mock("@/lib/token-metadata", () => ({
+  getOnChainTokenMeta: vi.fn(),
+}))
+
 import { getTokenBalance } from "@/lib/stellar"
-import {
-  useTokenBalanceSWR,
-  clearTokenBalanceCache,
-  clearTokenBalanceCacheForOwner,
-} from "@/hooks/useTokenBalanceSWR"
+import { getOnChainTokenMeta } from "@/lib/token-metadata"
+import { useTokenBalanceSWR, clearTokenBalanceCache, clearTokenBalanceCacheForOwner } from "@/hooks/useTokenBalanceSWR"
 
 const TOKEN = "CBFCKEOQRQIXKLGU4QBUQVOINOKFBOXJ37LXEKLKNUO6TW4FNGDU26AW"
 const OWNER = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"
 
 const mockGetTokenBalance = vi.mocked(getTokenBalance)
+const mockGetOnChainTokenMeta = vi.mocked(getOnChainTokenMeta)
 
 describe("useTokenBalanceSWR", () => {
   beforeEach(() => {
     clearTokenBalanceCache()
     mockGetTokenBalance.mockReset()
+    mockGetOnChainTokenMeta.mockReset()
+    // Most existing tests below assume a standard 7-decimal token (matching
+    // the old hardcoded 1e7 behavior); #747's dedicated test overrides this.
+    mockGetOnChainTokenMeta.mockResolvedValue({ symbol: "TEST", name: "Test Token", decimals: 7 })
   })
 
   afterEach(() => {
@@ -71,6 +77,20 @@ describe("useTokenBalanceSWR", () => {
     // 12.5 tokens -> 125_000_000 stroops (1e7 factor)
     expect(result.current.balance).toBe(125_000_000n)
     expect(mockGetTokenBalance).toHaveBeenCalledWith(TOKEN, OWNER)
+  })
+
+  it("encodes the cached balance using the token's real decimals, not a hardcoded 1e7 (#747)", async () => {
+    // An 18-decimal token (e.g. a bridged/wrapped SEP-41 asset): the old
+    // hardcoded-1e7 encoding would silently round this to 7 decimal places.
+    mockGetOnChainTokenMeta.mockResolvedValue({ symbol: "W18", name: "Wide Token", decimals: 18 })
+    mockGetTokenBalance.mockResolvedValue(2.5)
+
+    const { result } = renderHook(() => useTokenBalanceSWR(TOKEN, OWNER))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    // Correct at 18 decimals: 2_500_000_000_000_000_000n.
+    // The old hardcoded-1e7 bug would have produced 25_000_000n instead.
+    expect(result.current.balance).toBe(2_500_000_000_000_000_000n)
   })
 
   it("serves a fresh cached value immediately without revalidating", async () => {
