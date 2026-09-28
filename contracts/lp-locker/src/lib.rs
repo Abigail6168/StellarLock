@@ -666,6 +666,9 @@ impl LpLocker {
                     .ok_or(ContractError::AmountOverflow)?;
                 amount
             };
+            if share_amount <= 0 {
+                return Err(ContractError::AmountMustBePositive);
+            }
 
             // The first sub-lock reuses group_id so the group_id is also a
             // valid lock id; subsequent sub-locks get their own ids.
@@ -813,7 +816,7 @@ impl LpLocker {
         let mut out: Vec<SplitGroup> = vec![&env];
         let len = ids.len();
         let start = offset.min(len);
-        let end = (start + limit).min(len);
+        let end = start.saturating_add(limit).min(len);
         let mut i = start;
         while i < end {
             let id = ids.get(i).unwrap();
