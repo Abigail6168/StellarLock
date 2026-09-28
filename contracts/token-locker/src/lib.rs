@@ -62,6 +62,8 @@ pub enum ContractError {
     NothingToRelease = 5,
     CanOnlyExtend = 6,
     VestingEndBeforeStart = 7,
+    VestingOutsideLockBounds = 25,
+    DuplicateBeneficiary = 26,
     TooFewBeneficiaries = 8,
     TooManyBeneficiaries = 9,
     SharesMustSum10000 = 10,
@@ -184,6 +186,22 @@ fn require_not_paused(env: &Env) -> Result<(), ContractError> {
     Ok(())
 }
 
+fn validate_vesting_bounds(
+    vesting: Option<&Vesting>,
+    created_at: u64,
+    unlock_at: u64,
+) -> Result<(), ContractError> {
+    if let Some(v) = vesting {
+        if v.end <= v.start {
+            return Err(ContractError::VestingEndBeforeStart);
+        }
+        if v.start < created_at || v.start > unlock_at {
+            return Err(ContractError::VestingOutsideLockBounds);
+        }
+    }
+    Ok(())
+}
+
 // ── Contract ──────────────────────────────────────────────────────────────────
 
 #[contract]
@@ -226,11 +244,7 @@ impl TokenLocker {
             return Err(ContractError::RateLimitExceeded);
         }
 
-        if let Some(ref v) = vesting {
-            if v.end <= v.start {
-                return Err(ContractError::VestingEndBeforeStart);
-            }
-        }
+        validate_vesting_bounds(vesting.as_ref(), now, unlock_at)?;
 
         token::Client::new(&env, &token).transfer(
             &creator,
@@ -576,11 +590,7 @@ impl TokenLocker {
             return Err(ContractError::RateLimitExceeded);
         }
 
-        if let Some(ref v) = vesting {
-            if v.end <= v.start {
-                return Err(ContractError::VestingEndBeforeStart);
-            }
-        }
+        validate_vesting_bounds(vesting.as_ref(), now, unlock_at)?;
 
         let n = beneficiaries.len();
         if n < 2 {
@@ -592,9 +602,15 @@ impl TokenLocker {
 
         let mut total_bps: u64 = 0;
         for i in 0..n {
-            let (_, bps) = beneficiaries.get(i).unwrap();
+            let (beneficiary, bps) = beneficiaries.get(i).unwrap();
             if bps == 0 {
                 return Err(ContractError::SharesMustSum10000);
+            }
+            for j in 0..i {
+                let (existing, _) = beneficiaries.get(j).unwrap();
+                if beneficiary == existing {
+                    return Err(ContractError::DuplicateBeneficiary);
+                }
             }
             total_bps += bps;
         }

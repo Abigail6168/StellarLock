@@ -1631,3 +1631,54 @@ fn cancel_upgrade_clears_pending_proposal() {
     let result = client.try_execute_upgrade();
     assert_eq!(result, Err(Ok(ContractError::NoPendingUpgrade)));
 }
+
+#[test]
+fn create_lock_rejects_vesting_outside_unlock_window() {
+    let (env, contract_id, token_id) = setup_env();
+    let client = TokenLockerClient::new(&env, &contract_id);
+    let creator = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    mint(&env, &token_id, &creator, 1_000);
+    let now = env.ledger().timestamp();
+    let unlock_at = now + 100_000;
+    let vesting = Vesting {
+        start: unlock_at + 1,
+        end: unlock_at + 2,
+        released: 0,
+    };
+
+    let result = client.try_create_lock(
+        &creator,
+        &token_id,
+        &100_i128,
+        &beneficiary,
+        &unlock_at,
+        &Some(vesting),
+        &empty_metadata(&env),
+    );
+    assert_eq!(result, Err(Ok(ContractError::VestingOutsideLockBounds)));
+}
+
+#[test]
+fn create_split_lock_rejects_duplicate_beneficiaries() {
+    let (env, contract_id, token_id) = setup_env();
+    let client = TokenLockerClient::new(&env, &contract_id);
+    let creator = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    mint(&env, &token_id, &creator, 1_000);
+    let unlock_at = env.ledger().timestamp() + 100_000;
+
+    let result = client.try_create_split_lock(
+        &creator,
+        &token_id,
+        &1_000_i128,
+        &vec![
+            &env,
+            (beneficiary.clone(), 5_000_u64),
+            (beneficiary, 5_000_u64),
+        ],
+        &unlock_at,
+        &None,
+    );
+    assert_eq!(result, Err(Ok(ContractError::DuplicateBeneficiary)));
+}
