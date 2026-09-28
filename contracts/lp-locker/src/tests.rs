@@ -1,6 +1,6 @@
 use soroban_sdk::{
-    testutils::{Address as _, Ledger},
-    token, Address, Env, IntoVal,
+    testutils::{Address as _, Events, Ledger},
+    token, Address, Env, IntoVal, Symbol, TryFromVal,
 };
 
 use crate::{ContractError, Dex, LockMetadata, LpLocker, LpLockerClient, Vesting};
@@ -1221,7 +1221,7 @@ fn vesting_nothing_to_release_before_start() {
         released: 0,
     };
 
-    let lock_id = client.create_lock(
+    let result = client.try_create_lock(
         &creator,
         &pool_share_id,
         &Dex::Soroswap,
@@ -1234,14 +1234,7 @@ fn vesting_nothing_to_release_before_start() {
         &empty_metadata(&env),
     );
 
-    // Advance past unlock_at but before vesting start.
-    advance_time(&env, 120_000);
-    let result = client.try_withdraw(&lock_id);
-    assert_eq!(
-        result,
-        Err(Ok(ContractError::NothingToRelease)),
-        "should get NothingToRelease when vesting hasn't started"
-    );
+    assert_eq!(result, Err(Ok(ContractError::VestingOutsideLockBounds)));
 }
 
 #[test]
@@ -1879,4 +1872,94 @@ fn split_lock_sub_lock_still_locked_before_unlock() {
 
     let result = client.try_withdraw(&group_id);
     assert_eq!(result, Err(Ok(ContractError::StillLocked)));
+}
+
+#[test]
+fn create_lock_rejects_vesting_outside_unlock_window() {
+    let (env, contract_id, pool_share_id, token_a, token_b) = setup_env();
+    let client = LpLockerClient::new(&env, &contract_id);
+    let creator = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    mint(&env, &pool_share_id, &creator, 1_000);
+    let now = env.ledger().timestamp();
+    let unlock_at = now + 100_000;
+    let vesting = Vesting {
+        start: unlock_at + 1,
+        end: unlock_at + 2,
+        released: 0,
+    };
+
+    let result = client.try_create_lock(
+        &creator,
+        &pool_share_id,
+        &Dex::Aquarius,
+        &token_a,
+        &token_b,
+        &100_i128,
+        &beneficiary,
+        &unlock_at,
+        &Some(vesting),
+        &empty_metadata(&env),
+    );
+    assert_eq!(result, Err(Ok(ContractError::VestingOutsideLockBounds)));
+}
+
+#[test]
+fn create_split_lock_rejects_duplicate_beneficiaries() {
+    let (env, contract_id, pool_share_id, token_a, token_b) = setup_env();
+    let client = LpLockerClient::new(&env, &contract_id);
+    let creator = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    mint(&env, &pool_share_id, &creator, 1_000);
+    let unlock_at = env.ledger().timestamp() + 100_000;
+
+    let result = client.try_create_split_lock(
+        &creator,
+        &pool_share_id,
+        &Dex::Aquarius,
+        &token_a,
+        &token_b,
+        &1_000_i128,
+        &soroban_sdk::vec![
+            &env,
+            (beneficiary.clone(), 5_000_u64),
+            (beneficiary, 5_000_u64),
+        ],
+        &unlock_at,
+        &None,
+    );
+    assert_eq!(result, Err(Ok(ContractError::DuplicateBeneficiary)));
+}
+
+#[test]
+fn create_split_lock_emits_an_lp_lock_created_event_per_child() {
+    let (env, contract_id, pool_share_id, token_a, token_b) = setup_env();
+    let client = LpLockerClient::new(&env, &contract_id);
+    let creator = Address::generate(&env);
+    let b1 = Address::generate(&env);
+    let b2 = Address::generate(&env);
+    mint(&env, &pool_share_id, &creator, 1_000);
+    client.create_split_lock(
+        &creator,
+        &pool_share_id,
+        &Dex::Aquarius,
+        &token_a,
+        &token_b,
+        &1_000_i128,
+        &soroban_sdk::vec![&env, (b1, 5_000_u64), (b2, 5_000_u64)],
+        &(env.ledger().timestamp() + 100_000),
+        &None,
+    );
+
+    let child_events = env
+        .events()
+        .all()
+        .iter()
+        .filter(|(address, topics, _)| {
+            *address == contract_id
+                && Symbol::try_from_val(&env, &topics.get(0).unwrap()).unwrap()
+                    == Symbol::new(&env, "lp_lock_created")
+        })
+        .count();
+    assert_eq!(child_events, 2);
 }
