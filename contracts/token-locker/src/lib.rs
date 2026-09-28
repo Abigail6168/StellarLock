@@ -627,6 +627,9 @@ impl TokenLocker {
                     .ok_or(ContractError::AmountOverflow)?;
                 amount
             };
+            if share_amount <= 0 {
+                return Err(ContractError::AmountMustBePositive);
+            }
             let lock_id = if i == 0 { group_id } else { get_id(&env) };
             let lock = Lock {
                 id: lock_id,
